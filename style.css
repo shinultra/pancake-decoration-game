@@ -101,6 +101,13 @@ body {
   color: #3a1c00;
 }
 .btn.primary:hover { background: linear-gradient(135deg, #ff9a4d, #ffc15a); }
+.btn-circle {
+  width: 38px; height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
 
 #stage {
   display: block;
@@ -179,6 +186,9 @@ body {
 @media (max-width: 640px) {
   .grade-value { font-size: 30px; }
   .btn { padding: 8px 14px; font-size: 13px; }
+  .btn-circle { width: 34px; height: 34px; padding: 0; font-size: 14px; }
   .breakdown { font-size: 10px; gap: 10px; }
   .result-grade { font-size: 60px; }
+  #hud { padding: 8px 10px; }
+  .hud-right { gap: 6px; }
 }

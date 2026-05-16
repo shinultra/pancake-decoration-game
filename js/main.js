@@ -6,6 +6,12 @@ import {
 } from "./draw.js";
 import { computeGrade, gradeRank } from "./score.js";
 import { attachInput } from "./input.js";
+import {
+  startAudio, toggleMute, isMuted,
+  playPickup, playPlace, playSwitch, playDelete, playWrong, playUnlock, playFinish,
+} from "./audio.js";
+
+const REPO_README_URL = "https://github.com/shinultra/pancake-decoration-game#readme";
 
 const canvas = document.getElementById("stage");
 const ctx = canvas.getContext("2d");
@@ -18,6 +24,8 @@ const ui = {
   bdSp:  document.getElementById("bd-sp"),
   bdOf:  document.getElementById("bd-of"),
   bdBo:  document.getElementById("bd-bo"),
+  btnSound:  document.getElementById("btn-sound"),
+  btnHelp:   document.getElementById("btn-help"),
   btnFinish: document.getElementById("btn-finish"),
   btnReset:  document.getElementById("btn-reset"),
   btnAgain:  document.getElementById("btn-again"),
@@ -181,6 +189,7 @@ function updateScore() {
 // --- プレミアム解放演出 ---
 function triggerPremiumUnlock() {
   state.premiumUnlocked = true;
+  playUnlock();
   // パーティクル爆発
   for (let i = 0; i < 80; i++) {
     const a = Math.random() * Math.PI * 2;
@@ -246,6 +255,7 @@ function isOverPancake(x, y) {
 // --- 入力ハンドラ ---
 attachInput(canvas, {
   onPointerDown(x, y) {
+    startAudio();
     if (state.finished) return;
 
     // まず既存トッピングを掴めるか
@@ -261,6 +271,7 @@ attachInput(canvas, {
         sourceKind: "placed",
         sourceData: p,
       };
+      playSwitch();
       updateScore();
       return;
     }
@@ -275,6 +286,7 @@ attachInput(canvas, {
         scale: 0.95 + Math.random() * 0.2,
         sourceKind: "palette",
       };
+      playPickup();
       return;
     }
   },
@@ -315,6 +327,7 @@ attachInput(canvas, {
         rotation: state.dragging.rotation,
         scale: state.dragging.scale,
       });
+      playPlace();
     } else {
       // パレットに戻す（新規）or 既存削除
       // 新規パレットドラッグでもホットケーキ外に落とすと「ちょい外」のはみ出し配置を許す
@@ -331,8 +344,12 @@ attachInput(canvas, {
           rotation: state.dragging.rotation,
           scale: state.dragging.scale,
         });
+        playPlace();
+      } else if (state.dragging.sourceKind === "placed") {
+        playDelete();
+      } else {
+        playWrong();
       }
-      // placed 由来でホットケーキから離れた場所にドロップ → 削除（pushしない）
     }
 
     state.dragging = null;
@@ -412,9 +429,10 @@ function frame(t) {
 
 // --- UI ボタン ---
 ui.btnFinish.addEventListener("click", () => {
+  startAudio();
   if (state.finished) return;
   if (state.placed.length === 0) {
-    // 0個では完成できない
+    playWrong();
     ui.btnFinish.animate(
       [{ transform: "translateX(0)" }, { transform: "translateX(-6px)" }, { transform: "translateX(6px)" }, { transform: "translateX(0)" }],
       { duration: 250 }
@@ -428,19 +446,35 @@ ui.btnFinish.addEventListener("click", () => {
   ui.resultStars.textContent = rank.stars;
   ui.resultTitle.textContent = state.grade >= 100 ? "傑作の完成！" : "完成！";
   ui.resultOverlay.classList.remove("hidden");
+  playFinish();
 });
 
 ui.btnReset.addEventListener("click", () => {
+  startAudio();
   resetState();
   ui.gradeValue.classList.remove("premium");
   ui.gradeBar.classList.remove("premium");
 });
 
 ui.btnAgain.addEventListener("click", () => {
+  startAudio();
   resetState();
   ui.gradeValue.classList.remove("premium");
   ui.gradeBar.classList.remove("premium");
 });
+
+ui.btnSound.addEventListener("click", () => {
+  startAudio();
+  const m = toggleMute();
+  ui.btnSound.textContent = m ? "🔇" : "🔊";
+});
+
+ui.btnHelp.addEventListener("click", () => {
+  window.open(REPO_README_URL, "_blank", "noopener,noreferrer");
+});
+
+// 起動直後のミュート状態をボタンに反映
+if (isMuted()) ui.btnSound.textContent = "🔇";
 
 // --- 起動 ---
 function init() {
