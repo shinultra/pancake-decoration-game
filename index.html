@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ホットケーキデコレーションゲーム</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="hud-left">
+      <div class="grade-label">グレード</div>
+      <div class="grade-value" id="grade-value">0</div>
+    </div>
+    <div class="hud-center">
+      <div class="grade-bar-wrap">
+        <div class="grade-bar" id="grade-bar"></div>
+        <div class="grade-bar-mark" style="left:71.4%"></div>
+      </div>
+      <div class="breakdown" id="breakdown">
+        <span>盛り <b id="bd-cov">0</b></span>
+        <span>均衡 <b id="bd-bal">0</b></span>
+        <span>散らばり <b id="bd-sp">0</b></span>
+        <span>はみ出し <b id="bd-of">0</b></span>
+        <span>彩り <b id="bd-bo">0</b></span>
+      </div>
+    </div>
+    <div class="hud-right">
+      <button id="btn-finish" class="btn primary">完 成</button>
+      <button id="btn-reset" class="btn">やり直し</button>
+    </div>
+  </header>
+
+  <canvas id="stage"></canvas>
+
+  <div id="result-overlay" class="hidden">
+    <div class="result-card">
+      <div class="result-title" id="result-title">完成！</div>
+      <div class="result-grade-label">最終グレード</div>
+      <div class="result-grade" id="result-grade">0</div>
+      <div class="result-rank" id="result-rank">修行中…</div>
+      <div class="result-stars" id="result-stars"></div>
+      <button id="btn-again" class="btn primary">もう一度</button>
+    </div>
+  </div>
+
+  <div id="premium-toast" class="hidden">✨ PREMIUM UNLOCKED ✨</div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
