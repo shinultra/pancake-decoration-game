@@ -10,8 +10,10 @@ import {
   startAudio, toggleMute, isMuted,
   playPickup, playPlace, playSwitch, playDelete, playWrong, playUnlock, playFinish,
 } from "./audio.js";
+import { submitScore, fetchTopScores } from "./ranking.js";
 
 const REPO_README_URL = "https://github.com/shinultra/pancake-decoration-game#readme";
+const PLAYER_NAME_KEY = "pancakeDeco.playerName";
 
 const canvas = document.getElementById("stage");
 const ctx = canvas.getContext("2d");
@@ -24,17 +26,30 @@ const ui = {
   bdSp:  document.getElementById("bd-sp"),
   bdOf:  document.getElementById("bd-of"),
   bdBo:  document.getElementById("bd-bo"),
-  btnSound:  document.getElementById("btn-sound"),
-  btnHelp:   document.getElementById("btn-help"),
-  btnFinish: document.getElementById("btn-finish"),
-  btnReset:  document.getElementById("btn-reset"),
-  btnAgain:  document.getElementById("btn-again"),
+  btnSound:   document.getElementById("btn-sound"),
+  btnHelp:    document.getElementById("btn-help"),
+  btnRanking: document.getElementById("btn-ranking"),
+  btnFinish:  document.getElementById("btn-finish"),
+  btnReset:   document.getElementById("btn-reset"),
+  btnAgain:   document.getElementById("btn-again"),
   resultOverlay: document.getElementById("result-overlay"),
   resultGrade:   document.getElementById("result-grade"),
   resultRank:    document.getElementById("result-rank"),
   resultStars:   document.getElementById("result-stars"),
   resultTitle:   document.getElementById("result-title"),
   premiumToast:  document.getElementById("premium-toast"),
+
+  submitForm:    document.getElementById("submit-form"),
+  playerName:    document.getElementById("player-name"),
+  btnSubmit:     document.getElementById("btn-submit-score"),
+  submitStatus:  document.getElementById("submit-status"),
+  btnShowRanking: document.getElementById("btn-show-ranking"),
+
+  rankingOverlay: document.getElementById("ranking-overlay"),
+  rankingStatus:  document.getElementById("ranking-status"),
+  rankingTbody:   document.getElementById("ranking-tbody"),
+  btnRankingClose:  document.getElementById("btn-ranking-close"),
+  btnRankingReload: document.getElementById("btn-ranking-reload"),
 };
 
 // --- レイアウト ---
@@ -135,6 +150,7 @@ const state = {
   hoverSlotIdx: -1,
   hoverSlotTier: 0,
   flashMs: 0,
+  scoreSubmitted: false,
 };
 
 function resetState() {
@@ -148,8 +164,10 @@ function resetState() {
   state.particles = [];
   state.hoverSlotIdx = -1;
   state.hoverSlotTier = 0;
+  state.scoreSubmitted = false;
   updateScore();
   ui.resultOverlay.classList.add("hidden");
+  resetSubmitForm();
 }
 
 // --- 採点更新 ---
@@ -472,6 +490,127 @@ ui.btnSound.addEventListener("click", () => {
 ui.btnHelp.addEventListener("click", () => {
   window.open(REPO_README_URL, "_blank", "noopener,noreferrer");
 });
+
+// --- ランキング ---
+function resetSubmitForm() {
+  if (!ui.submitForm) return;
+  ui.submitForm.classList.remove("hidden");
+  ui.submitStatus.textContent = "";
+  ui.submitStatus.classList.remove("error", "success");
+  ui.btnSubmit.disabled = false;
+  ui.btnSubmit.textContent = "登録";
+}
+
+function openRanking() {
+  ui.rankingOverlay.classList.remove("hidden");
+  loadRanking();
+}
+
+function closeRanking() {
+  ui.rankingOverlay.classList.add("hidden");
+}
+
+async function loadRanking() {
+  ui.rankingStatus.textContent = "読み込み中…";
+  ui.rankingStatus.classList.remove("error");
+  ui.rankingTbody.innerHTML = "";
+  try {
+    const rows = await fetchTopScores(50);
+    if (rows.length === 0) {
+      ui.rankingStatus.textContent = "まだ誰も登録していません。一番乗りを狙おう！";
+      return;
+    }
+    ui.rankingStatus.textContent = `TOP ${rows.length}`;
+    const frag = document.createDocumentFragment();
+    rows.forEach((row, i) => {
+      const tr = document.createElement("tr");
+      const rank = i + 1;
+      if (rank <= 3) tr.classList.add(`rank-${rank}`);
+      tr.innerHTML = `
+        <td class="rank-cell">${rank}</td>
+        <td class="name-cell"></td>
+        <td class="num">${row.score ?? 0}</td>
+        <td class="date">${formatDate(row.timestamp)}</td>
+      `;
+      tr.querySelector(".name-cell").textContent = row.playerName ?? "ななし";
+      frag.appendChild(tr);
+    });
+    ui.rankingTbody.appendChild(frag);
+  } catch (err) {
+    console.error(err);
+    ui.rankingStatus.textContent = "ランキングの取得に失敗しました。通信状況を確認してね。";
+    ui.rankingStatus.classList.add("error");
+  }
+}
+
+function formatDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}/${m}/${day}`;
+}
+
+ui.btnRanking.addEventListener("click", () => {
+  startAudio();
+  openRanking();
+});
+
+ui.btnRankingClose.addEventListener("click", () => {
+  closeRanking();
+});
+
+ui.btnRankingReload.addEventListener("click", () => {
+  loadRanking();
+});
+
+ui.rankingOverlay.addEventListener("click", (e) => {
+  if (e.target === ui.rankingOverlay) closeRanking();
+});
+
+ui.btnShowRanking.addEventListener("click", () => {
+  startAudio();
+  openRanking();
+});
+
+ui.submitForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (state.scoreSubmitted) return;
+  const name = ui.playerName.value.trim();
+  if (!name) {
+    ui.playerName.focus();
+    return;
+  }
+  if (state.placed.length === 0 || !state.finished) {
+    ui.submitStatus.textContent = "完成してから登録してね。";
+    ui.submitStatus.classList.add("error");
+    return;
+  }
+  ui.btnSubmit.disabled = true;
+  ui.btnSubmit.textContent = "登録中…";
+  ui.submitStatus.textContent = "";
+  ui.submitStatus.classList.remove("error", "success");
+  try {
+    await submitScore(name, state.grade);
+    try { localStorage.setItem(PLAYER_NAME_KEY, name); } catch {}
+    state.scoreSubmitted = true;
+    ui.submitStatus.textContent = "登録しました！ 🏆";
+    ui.submitStatus.classList.add("success");
+    ui.btnSubmit.textContent = "登録済み";
+  } catch (err) {
+    console.error(err);
+    ui.submitStatus.textContent = "登録に失敗しました。通信状況を確認してね。";
+    ui.submitStatus.classList.add("error");
+    ui.btnSubmit.disabled = false;
+    ui.btnSubmit.textContent = "再試行";
+  }
+});
+
+// 起動時に保存済みプレイヤー名を復元
+try {
+  const saved = localStorage.getItem(PLAYER_NAME_KEY);
+  if (saved) ui.playerName.value = saved;
+} catch {}
 
 // 起動直後のミュート状態をボタンに反映
 if (isMuted()) ui.btnSound.textContent = "🔇";

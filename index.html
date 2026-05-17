@@ -28,8 +28,9 @@
       </div>
     </div>
     <div class="hud-right">
-      <button id="btn-sound" class="btn btn-circle" aria-label="サウンド切替" title="サウンド">🔊</button>
-      <button id="btn-help"  class="btn btn-circle" aria-label="遊び方" title="遊び方">?</button>
+      <button id="btn-sound"   class="btn btn-circle" aria-label="サウンド切替" title="サウンド">🔊</button>
+      <button id="btn-help"    class="btn btn-circle" aria-label="遊び方" title="遊び方">?</button>
+      <button id="btn-ranking" class="btn btn-circle" aria-label="ランキング" title="ランキング">🏆</button>
       <button id="btn-finish" class="btn primary">完 成</button>
       <button id="btn-reset" class="btn">やり直し</button>
     </div>
@@ -44,7 +45,37 @@
       <div class="result-grade" id="result-grade">0</div>
       <div class="result-rank" id="result-rank">修行中…</div>
       <div class="result-stars" id="result-stars"></div>
-      <button id="btn-again" class="btn primary">もう一度</button>
+      <form id="submit-form" class="submit-form" autocomplete="off">
+        <label class="submit-label" for="player-name">🏆 ランキングに登録</label>
+        <div class="submit-row">
+          <input type="text" id="player-name" maxlength="20" placeholder="ニックネーム" required>
+          <button type="submit" id="btn-submit-score" class="btn primary">登録</button>
+        </div>
+        <div class="submit-status" id="submit-status"></div>
+      </form>
+      <div class="result-actions">
+        <button id="btn-show-ranking" class="btn">🏆 ランキングを見る</button>
+        <button id="btn-again" class="btn primary">もう一度</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ranking-overlay" class="hidden">
+    <div class="ranking-card">
+      <div class="ranking-header">
+        <div class="ranking-title">🏆 グローバルランキング</div>
+        <button id="btn-ranking-close" class="btn btn-circle ranking-close" aria-label="閉じる" title="閉じる">×</button>
+      </div>
+      <div class="ranking-status" id="ranking-status">読み込み中…</div>
+      <div class="ranking-table-wrap">
+        <table class="ranking-table">
+          <thead>
+            <tr><th>#</th><th>プレイヤー</th><th class="num">スコア</th><th class="date">日付</th></tr>
+          </thead>
+          <tbody id="ranking-tbody"></tbody>
+        </table>
+      </div>
+      <button id="btn-ranking-reload" class="btn ranking-reload">再読み込み</button>
     </div>
   </div>
 
