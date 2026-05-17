@@ -15,7 +15,7 @@
 - GitHub Pages: https://shinultra.github.io/pancake-decoration-game/
 - リポジトリ: https://github.com/shinultra/pancake-decoration-game
 
-## 現在の状態（2026-05-16）
+## 現在の状態（2026-05-17）
 
 ✅ **完成した機能**
 - コアゲーム（ドラッグ&ドロップ配置、リアルタイム採点）
@@ -25,32 +25,10 @@
 - iOS/Android音声アンロック対応（無音バッファ + ドキュメント層イベントキャプチャ）
 - 結果画面・称号表示
 - 日本語README.md（GitHub最適化）
+- **Firebase Firestore グローバルランキング**（匿名認証、TOP50、結果カードから登録、HUDの🏆から閲覧）
+- **マイギャラリー**（完成画像をlocalStorageに保存、HUDの📚から一覧、上限30件＝低スコア自動削除、PNGダウンロード対応）
 
-⏳ **進行中: Firebase Firestoreランキングシステム**
-
-Firebase Console セットアップ進捗:
-- ✅ プロジェクト作成: `pancake-decoration`
-- ✅ Firestore Database 作成 (リージョン: `asia-northeast1` / 東京、本番モード)
-- ⏳ Authentication: 匿名サインインの有効化 (作業中)
-- ⏳ 承認済みドメインに `shinultra.github.io` を追加 (作業中)
-- ⏳ Web アプリ登録 → firebaseConfig 取得 (未着手)
-- ⏳ セキュリティルール反映 (未着手)
-- ⏳ コード実装 (firebaseConfig 受領後に開始)
-
-## Firebase Firestore ランキングの実装予定
-
-### 必要なファイル
-1. `js/firebase-config.js` - firebaseConfig をエクスポート
-2. `js/ranking.js` - Firestore ラッパー関数（submitScore, fetchTopScores）
-3. `index.html` 更新 - ランキング表示UI（モーダル、テーブル、🏆ボタン）
-4. `js/main.js` 更新 - ランキング画面の状態管理
-5. `style.css` 更新 - モーダル・テーブルスタイル
-6. `README.md` 更新 - ランキング機能の説明
-
-### セキュリティルール
-- 読み取り: すべてのユーザーが可能
-- 書き込み: 匿名認証済みのみ、バリデーション付き（score数値、name長50字以下など）
-- 削除/更新: 禁止
+## Firebase Firestore ランキング（実装済み）
 
 ### データモデル
 ```
@@ -61,35 +39,52 @@ Firebase Console セットアップ進捗:
   - uid: string (Firebase UID)
 ```
 
+### セキュリティルール
+- 読み取り: すべてのユーザーが可能
+- 書き込み: 匿名認証済みのみ、バリデーション付き（score数値、name長50字以下など）
+- 削除/更新: 禁止
+
+## マイギャラリー（実装済み）
+
+### データモデル（localStorage キー: `pancakeDeco.gallery`）
+```
+[
+  {
+    id: string,           // crypto.randomUUID()
+    image: string,        // JPEG dataURL (480x480, quality 0.85)
+    score: number,
+    rank: string,         // 例: "本格派 ★★★★"
+    breakdown: { coverage, balance, spread, overflow, bonus },
+    timestamp: number,    // ミリ秒
+  },
+  ...
+]
+```
+
+- 上限 30 件、超えたら最低スコア優先で自動削除
+- 完成時に `js/gallery.js#snapshotPancake` でスナップショット生成
+- 詳細モーダルから PNG ダウンロード（JPEG 出力だが拡張子 .jpg）
+- クラウド同期なし、端末ローカル限定
+
 ## ファイル構成
 
 ```
 そまそま/
-├── index.html              # ゲーム画面 + ランキング UI（予定）
+├── index.html              # ゲーム画面 + ランキング/ギャラリー UI
 ├── style.css               # スタイル（モーダル含む）
 ├── README.md               # GitHub 用ドキュメント
 ├── CLAUDE.md               # このファイル
 └── js/
-    ├── main.js             # メインループ・状態管理
+    ├── main.js             # メインループ・状態管理・全UIハンドラ
     ├── draw.js             # Canvas 描画関数
     ├── toppings.js         # 17種トッピング定義
     ├── input.js            # マウス/タッチ入力
     ├── score.js            # 採点アルゴリズム
     ├── audio.js            # BGM・効果音合成
-    ├── firebase-config.js  # Firebase コンフィグ（予定）
-    └── ranking.js          # Firestore ランキング管理（予定）
+    ├── firebase-config.js  # Firebase コンフィグ
+    ├── ranking.js          # Firestore ランキング管理
+    └── gallery.js          # localStorage ギャラリー + スナップショット生成
 ```
-
-## 作業ステップ（ランキング実装）
-
-1. ユーザーが Firebase Console で全セットアップ完了 → firebaseConfig を提供
-2. `js/firebase-config.js` を作成（firebaseConfig をエクスポート）
-3. `js/ranking.js` を実装（Firestore CRUD + 匿名認証）
-4. `index.html` にランキング UI 追加（完成後に表示モーダル）
-5. `js/main.js` にランキング状態・ハンドラ統合
-6. `style.css` にモーダル・テーブルスタイル追加
-7. `README.md` にランキング説明を追加
-8. 動作確認 → GitHub にプッシュ → GitHub Pages で自動デプロイ
 
 ## 重要な注記
 
@@ -107,11 +102,9 @@ Firebase Console セットアップ進捗:
 - **Firestore モード**: 本番モード (テストモードではない)
 - **料金プラン**: Spark (無料枠)
 
-## 次のアクション
+## 今後の拡張アイデア
 
-1. Authentication で「匿名」サインインを有効化
-2. Authentication → Settings → 承認済みドメインに `shinultra.github.io` を追加
-3. プロジェクト設定 → Web アプリ登録 (Hosting なし) → `firebaseConfig` 取得
-4. Firestore → ルールタブにセキュリティルールを貼り付けて公開
-5. `firebaseConfig` を Claude に提供
-6. `js/firebase-config.js` → `js/ranking.js` → UI 統合の順に実装
+- ギャラリーのクラウド同期（IndexedDB → Firebase Storage 連携）
+- ランキングのスコア改ざん検出（Cloud Functions で配置データを再採点して検証）
+- 「ギャラリーから配置データを復元してもう一度」（現状は画像のみ保存）
+- ギャラリー作品の SNS シェア（OGP対応の共有用URL生成）

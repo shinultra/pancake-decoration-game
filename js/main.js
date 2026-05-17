@@ -11,6 +11,9 @@ import {
   playPickup, playPlace, playSwitch, playDelete, playWrong, playUnlock, playFinish,
 } from "./audio.js";
 import { submitScore, fetchTopScores } from "./ranking.js";
+import {
+  loadGallery, saveItem, deleteItem, snapshotPancake, downloadImage, generateId, maxItems,
+} from "./gallery.js";
 
 const REPO_README_URL = "https://github.com/shinultra/pancake-decoration-game#readme";
 const PLAYER_NAME_KEY = "pancakeDeco.playerName";
@@ -29,6 +32,7 @@ const ui = {
   btnSound:   document.getElementById("btn-sound"),
   btnHelp:    document.getElementById("btn-help"),
   btnRanking: document.getElementById("btn-ranking"),
+  btnGallery: document.getElementById("btn-gallery"),
   btnFinish:  document.getElementById("btn-finish"),
   btnReset:   document.getElementById("btn-reset"),
   btnAgain:   document.getElementById("btn-again"),
@@ -50,7 +54,26 @@ const ui = {
   rankingTbody:   document.getElementById("ranking-tbody"),
   btnRankingClose:  document.getElementById("btn-ranking-close"),
   btnRankingReload: document.getElementById("btn-ranking-reload"),
+
+  btnSaveGallery:  document.getElementById("btn-save-gallery"),
+  galleryOverlay:  document.getElementById("gallery-overlay"),
+  galleryStatus:   document.getElementById("gallery-status"),
+  galleryGrid:     document.getElementById("gallery-grid"),
+  galleryCount:    document.getElementById("gallery-count"),
+  btnGalleryClose: document.getElementById("btn-gallery-close"),
+
+  detailOverlay:   document.getElementById("detail-overlay"),
+  detailImage:     document.getElementById("detail-image"),
+  detailGrade:     document.getElementById("detail-grade"),
+  detailRank:      document.getElementById("detail-rank"),
+  detailBreakdown: document.getElementById("detail-breakdown"),
+  detailDate:      document.getElementById("detail-date"),
+  btnDetailClose:  document.getElementById("btn-detail-close"),
+  btnDetailDownload: document.getElementById("btn-detail-download"),
+  btnDetailDelete: document.getElementById("btn-detail-delete"),
 };
+
+let detailCurrentId = null;
 
 // --- レイアウト ---
 const layout = {
@@ -151,6 +174,8 @@ const state = {
   hoverSlotTier: 0,
   flashMs: 0,
   scoreSubmitted: false,
+  lastSnapshot: null,
+  gallerySaved: false,
 };
 
 function resetState() {
@@ -165,9 +190,12 @@ function resetState() {
   state.hoverSlotIdx = -1;
   state.hoverSlotTier = 0;
   state.scoreSubmitted = false;
+  state.lastSnapshot = null;
+  state.gallerySaved = false;
   updateScore();
   ui.resultOverlay.classList.add("hidden");
   resetSubmitForm();
+  resetSaveGalleryButton();
 }
 
 // --- 採点更新 ---
@@ -464,6 +492,15 @@ ui.btnFinish.addEventListener("click", () => {
   ui.resultStars.textContent = rank.stars;
   ui.resultTitle.textContent = state.grade >= 100 ? "傑作の完成！" : "完成！";
   ui.resultOverlay.classList.remove("hidden");
+  // 完成時点でスナップショットを焼いておく（リサイズで座標がズレる前に確定）
+  try {
+    state.lastSnapshot = snapshotPancake(state.placed, {
+      cx: layout.cx, cy: layout.cy, pancakeR: layout.pancakeR,
+    });
+  } catch (err) {
+    console.error("snapshot failed", err);
+    state.lastSnapshot = null;
+  }
   playFinish();
 });
 
@@ -604,6 +641,179 @@ ui.submitForm.addEventListener("submit", async (e) => {
     ui.btnSubmit.disabled = false;
     ui.btnSubmit.textContent = "再試行";
   }
+});
+
+// --- ギャラリー ---
+function resetSaveGalleryButton() {
+  if (!ui.btnSaveGallery) return;
+  ui.btnSaveGallery.disabled = false;
+  ui.btnSaveGallery.classList.remove("saved");
+  ui.btnSaveGallery.textContent = "📚 ギャラリーに保存";
+}
+
+function formatDateShort(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}/${m}/${day}`;
+}
+
+function formatDateTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getFullYear()}/${m}/${day} ${hh}:${mm}`;
+}
+
+function openGallery() {
+  ui.galleryOverlay.classList.remove("hidden");
+  renderGallery();
+}
+
+function closeGallery() {
+  ui.galleryOverlay.classList.add("hidden");
+}
+
+function renderGallery() {
+  const items = loadGallery();
+  ui.galleryCount.textContent = `(${items.length}/${maxItems()})`;
+  ui.galleryGrid.innerHTML = "";
+  if (items.length === 0) {
+    ui.galleryStatus.textContent = "まだ作品はありません。完成画面から「📚 ギャラリーに保存」で残せます。";
+    ui.galleryStatus.classList.add("empty");
+    return;
+  }
+  ui.galleryStatus.textContent = "";
+  ui.galleryStatus.classList.remove("empty");
+
+  // 新しい順
+  const sorted = [...items].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+  const frag = document.createDocumentFragment();
+  for (const it of sorted) {
+    const card = document.createElement("div");
+    card.className = "gallery-thumb";
+    card.dataset.id = it.id;
+    const img = document.createElement("img");
+    img.src = it.image;
+    img.alt = `グレード ${it.score}`;
+    img.loading = "lazy";
+    const scoreChip = document.createElement("div");
+    scoreChip.className = "score-chip";
+    scoreChip.textContent = it.score;
+    const dateChip = document.createElement("div");
+    dateChip.className = "date-chip";
+    dateChip.textContent = formatDateShort(it.timestamp);
+    card.append(img, scoreChip, dateChip);
+    card.addEventListener("click", () => openDetail(it.id));
+    frag.appendChild(card);
+  }
+  ui.galleryGrid.appendChild(frag);
+}
+
+function openDetail(id) {
+  const item = loadGallery().find((it) => it.id === id);
+  if (!item) return;
+  detailCurrentId = id;
+  ui.detailImage.src = item.image;
+  ui.detailGrade.textContent = item.score;
+  ui.detailRank.textContent = item.rank ?? "";
+  ui.detailDate.textContent = formatDateTime(item.timestamp);
+  ui.detailBreakdown.innerHTML = "";
+  const bd = item.breakdown ?? {};
+  const rows = [
+    ["盛り", bd.coverage],
+    ["均衡", bd.balance],
+    ["散らばり", bd.spread],
+    ["はみ出し", bd.overflow],
+    ["彩り", bd.bonus],
+  ];
+  for (const [label, val] of rows) {
+    if (val == null) continue;
+    const li = document.createElement("li");
+    li.innerHTML = `${label}<b></b>`;
+    li.querySelector("b").textContent = val;
+    ui.detailBreakdown.appendChild(li);
+  }
+  ui.detailOverlay.classList.remove("hidden");
+}
+
+function closeDetail() {
+  ui.detailOverlay.classList.add("hidden");
+  detailCurrentId = null;
+}
+
+ui.btnGallery.addEventListener("click", () => {
+  startAudio();
+  openGallery();
+});
+
+ui.btnGalleryClose.addEventListener("click", () => closeGallery());
+
+ui.galleryOverlay.addEventListener("click", (e) => {
+  if (e.target === ui.galleryOverlay) closeGallery();
+});
+
+ui.btnSaveGallery.addEventListener("click", () => {
+  startAudio();
+  if (state.gallerySaved) return;
+  if (!state.finished || state.placed.length === 0) return;
+  let snapshot = state.lastSnapshot;
+  if (!snapshot) {
+    try {
+      snapshot = snapshotPancake(state.placed, {
+        cx: layout.cx, cy: layout.cy, pancakeR: layout.pancakeR,
+      });
+      state.lastSnapshot = snapshot;
+    } catch (err) {
+      console.error(err);
+      return;
+    }
+  }
+  const rankInfo = gradeRank(state.grade);
+  const item = {
+    id: generateId(),
+    image: snapshot,
+    score: state.grade,
+    rank: `${rankInfo.name} ${rankInfo.stars}`.trim(),
+    breakdown: { ...state.breakdown },
+    timestamp: Date.now(),
+  };
+  try {
+    saveItem(item);
+    state.gallerySaved = true;
+    ui.btnSaveGallery.classList.add("saved");
+    ui.btnSaveGallery.textContent = "✓ 保存しました";
+    ui.btnSaveGallery.disabled = true;
+  } catch (err) {
+    console.error(err);
+    ui.btnSaveGallery.textContent = "保存失敗 (容量不足?)";
+  }
+});
+
+ui.btnDetailClose.addEventListener("click", () => closeDetail());
+
+ui.detailOverlay.addEventListener("click", (e) => {
+  if (e.target === ui.detailOverlay) closeDetail();
+});
+
+ui.btnDetailDownload.addEventListener("click", () => {
+  if (!detailCurrentId) return;
+  const item = loadGallery().find((it) => it.id === detailCurrentId);
+  if (!item) return;
+  const filename = `pancake_${formatDateShort(item.timestamp).replace(/\//g, "")}_${item.score}.jpg`;
+  downloadImage(item.image, filename);
+});
+
+ui.btnDetailDelete.addEventListener("click", () => {
+  if (!detailCurrentId) return;
+  if (!confirm("この作品を削除しますか?")) return;
+  deleteItem(detailCurrentId);
+  closeDetail();
+  renderGallery();
 });
 
 // 起動時に保存済みプレイヤー名を復元

@@ -31,6 +31,7 @@
       <button id="btn-sound"   class="btn btn-circle" aria-label="サウンド切替" title="サウンド">🔊</button>
       <button id="btn-help"    class="btn btn-circle" aria-label="遊び方" title="遊び方">?</button>
       <button id="btn-ranking" class="btn btn-circle" aria-label="ランキング" title="ランキング">🏆</button>
+      <button id="btn-gallery" class="btn btn-circle" aria-label="ギャラリー" title="マイギャラリー">📚</button>
       <button id="btn-finish" class="btn primary">完 成</button>
       <button id="btn-reset" class="btn">やり直し</button>
     </div>
@@ -54,6 +55,7 @@
         <div class="submit-status" id="submit-status"></div>
       </form>
       <div class="result-actions">
+        <button id="btn-save-gallery" class="btn">📚 ギャラリーに保存</button>
         <button id="btn-show-ranking" class="btn">🏆 ランキングを見る</button>
         <button id="btn-again" class="btn primary">もう一度</button>
       </div>
@@ -76,6 +78,37 @@
         </table>
       </div>
       <button id="btn-ranking-reload" class="btn ranking-reload">再読み込み</button>
+    </div>
+  </div>
+
+  <div id="gallery-overlay" class="hidden">
+    <div class="gallery-card">
+      <div class="gallery-header">
+        <div class="gallery-title">📚 マイギャラリー <span class="gallery-count" id="gallery-count"></span></div>
+        <button id="btn-gallery-close" class="btn btn-circle ranking-close" aria-label="閉じる" title="閉じる">×</button>
+      </div>
+      <div class="gallery-status" id="gallery-status"></div>
+      <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+  </div>
+
+  <div id="detail-overlay" class="hidden">
+    <div class="detail-card">
+      <button id="btn-detail-close" class="btn btn-circle ranking-close detail-close" aria-label="閉じる" title="閉じる">×</button>
+      <div class="detail-image-wrap">
+        <img id="detail-image" alt="保存したパンケーキ">
+      </div>
+      <div class="detail-info">
+        <div class="detail-grade-label">最終グレード</div>
+        <div class="detail-grade" id="detail-grade">0</div>
+        <div class="detail-rank" id="detail-rank"></div>
+        <ul class="detail-breakdown" id="detail-breakdown"></ul>
+        <div class="detail-date" id="detail-date"></div>
+      </div>
+      <div class="detail-actions">
+        <button id="btn-detail-download" class="btn">📥 ダウンロード</button>
+        <button id="btn-detail-delete" class="btn btn-danger">🗑 削除</button>
+      </div>
     </div>
   </div>
 
